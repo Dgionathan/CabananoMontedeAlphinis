@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Flipbook - Cabana no Monte de Alphinis</title>
+  <style>
+    body {
+      background: #0d0d0d;
+      color: white;
+      margin: 0;
+      font-family: "Georgia", serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #viewer {
+      width: 90vw;
+      height: 90vh;
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+      background: #1a1a1a;
+      overflow: hidden;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      margin: auto;
+      border: 1px solid #444;
+    }
+
+    .controls {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 20px;
+    }
+
+    button {
+      background: #262626;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background: #e60000;
+    }
+  </style>
+</head>
+<body>
+
+<div id="viewer">
+  <canvas id="pdf-render"></canvas>
+  <div class="controls">
+    <button id="prev">◀ Anterior</button>
+    <span id="page-info"></span>
+    <button id="next">Próxima ▶</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+<script>
+  const url = "capitulo1.pdf"; // 👉 coloque aqui o caminho do seu PDF
+
+  let pdfDoc = null,
+      pageNum = 1,
+      pageIsRendering = false,
+      pageNumIsPending = null;
+
+  const scale = 1.5,
+        canvas = document.getElementById("pdf-render"),
+        ctx = canvas.getContext("2d");
+
+  // Renderizar página
+  const renderPage = num => {
+    pageIsRendering = true;
+
+    pdfDoc.getPage(num).then(page => {
+      const viewport = page.getViewport({ scale });
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      const renderCtx = {
+        canvasContext: ctx,
+        viewport
+      };
+
+      page.render(renderCtx).promise.then(() => {
+        pageIsRendering = false;
+
+        if (pageNumIsPending !== null) {
+          renderPage(pageNumIsPending);
+          pageNumIsPending = null;
+        }
+      });
+
+      document.getElementById("page-info").textContent = `Página ${num} de ${pdfDoc.numPages}`;
+    });
+  };
+
+  const queueRenderPage = num => {
+    if (pageIsRendering) {
+      pageNumIsPending = num;
+    } else {
+      renderPage(num);
+    }
+  };
+
+  const showPrevPage = () => {
+    if (pageNum <= 1) return;
+    pageNum--;
+    queueRenderPage(pageNum);
+  };
+
+  const showNextPage = () => {
+    if (pageNum >= pdfDoc.numPages) return;
+    pageNum++;
+    queueRenderPage(pageNum);
+  };
+
+  pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+    pdfDoc = pdfDoc_;
+    renderPage(pageNum);
+  });
+
+  document.getElementById("prev").addEventListener("click", showPrevPage);
+  document.getElementById("next").addEventListener("click", showNextPage);
+</script>
+
+</body>
+</html>
